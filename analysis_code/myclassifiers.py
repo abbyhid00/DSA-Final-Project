@@ -114,6 +114,7 @@ class MyNaiveBayesClassifier:
                             highest_prob = prob
                             label_to_add = label
             y_pred.append(label_to_add)
+        return y_pred
 
 class MyKNeighborsClassifier:
     """Represents a simple k nearest neighbors classifier.
