@@ -6,6 +6,7 @@ Description: This file implements useful functions for myclassifiers and pa6 fil
 
 """
 import numpy as np
+import matplotlib.pyplot as plt
 import tabulate
 import analysis_code.myevaluation as myeval
 #from mysklearn.myclassifiers import MyKNeighborsClassifier
@@ -223,4 +224,25 @@ def print_metrics(y_pred, y_true):
     matrix_labels = [[str(label)] + row for label, row in zip(unique_vals, matrix_extra)]
     #printing matrix
     print(tabulate.tabulate(matrix_labels, headers=headers))
-    
+
+def histogram(data, x_label, y_label, title, xticks=None, bins=10, edgecolor="black"):
+    """Plots histogram plot
+
+    Args:
+        data(MyPyTable): 2D list of data
+        y(list): frequency for each value
+        title(str): title of plot
+        x_label(str): label for x axis
+        y_label(str): label for y axis
+        xticks(list): list of strings for x axis tick labels
+        bins(int): number of bins
+        edgecolor(str): color of the bar outlines
+    """
+    plt.figure()
+    plt.hist(data, edgecolor=edgecolor, bins=bins)
+    if xticks is not None:
+        plt.xticks(xticks, rotation=45, ha='right')
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.show()
