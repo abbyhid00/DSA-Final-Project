@@ -7,7 +7,7 @@ Description: This file implements useful functions for myclassifiers and pa6 fil
 """
 import numpy as np
 import tabulate
-import myevaluation as myeval
+import analysis_code.myevaluation as myeval
 #from mysklearn.myclassifiers import MyKNeighborsClassifier
 #from mysklearn.myclassifiers import MyDummyClassifier
 

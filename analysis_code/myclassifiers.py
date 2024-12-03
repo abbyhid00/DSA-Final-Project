@@ -1,6 +1,6 @@
 import operator
 import numpy as np
-import myutils
+import analysis_code.myutils as myutils
 
 class MyNaiveBayesClassifier:
     """Represents a Naive Bayes classifier.
