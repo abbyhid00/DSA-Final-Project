@@ -244,6 +244,47 @@ def accuracy_score(y_true, y_pred, normalize=True):
     #if not true return the number of correct predictions
     else:
         return correct
+    
+def bootstrap_sample(X, y=None, n_samples=None, random_state=None):
+    """Split dataset into bootstrapped training set and out of bag test set.
+
+    Args:
+        X(list of list of obj): The list of samples
+        y(list of obj): The target y values (parallel to X)
+            Default is None (in this case, the calling code only wants to sample X)
+        n_samples(int): Number of samples to generate. If left to None (default) this is automatically
+            set to the first dimension of X.
+        random_state(int): integer used for seeding a random number generator for reproducible results
+
+    Returns:
+        X_sample(list of list of obj): The list of samples
+        X_out_of_bag(list of list of obj): The list of "out of bag" samples (e.g. left-over samples)
+        y_sample(list of obj): The list of target y values sampled (parallel to X_sample)
+            None if y is None
+        y_out_of_bag(list of obj): The list of target y values "out of bag" (parallel to X_out_of_bag)
+            None if y is None
+    Notes:
+        Loosely based on sklearn's resample():
+            https://scikit-learn.org/stable/modules/generated/sklearn.utils.resample.html
+        Sample indexes of X with replacement, then build X_sample and X_out_of_bag
+            as lists of instances using sampled indexes (use same indexes to build
+            y_sample and y_out_of_bag)
+    """
+    if random_state is not None:
+        np.random.seed(random_state)
+    if n_samples is None:
+        n_samples = len(X)
+    chosen_indices = np.random.randint(0, len(X), size=n_samples)
+    chosen_indices_set = set(chosen_indices)
+    all_indices_set = set(range(len(X)))
+    out_bag_indices = all_indices_set - chosen_indices_set #finds # of instances where they aren't chosen
+    X_sample = [X[i] for i in chosen_indices]
+    y_sample = [y[i] for i in chosen_indices]
+    X_out_of_bag = [X[i] for i in out_bag_indices]
+    y_out_of_bag = [y[i] for i in out_bag_indices]
+
+    return X_sample, X_out_of_bag, y_sample, y_out_of_bag
+
 def classification_report(y_true, y_pred, out_dict, labels=None):
     """Build a text report and a dictionary showing the main classification metrics.
 
