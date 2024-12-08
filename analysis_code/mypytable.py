@@ -67,27 +67,13 @@ class MyPyTable:
         Notes:
             Raise ValueError on invalid col_identifier
         """
-        column = []
-        #Checking to make sure the column is in the table if it is a string or int
-        if isinstance(col_identifier, str):
-            if col_identifier not in self.column_names:
-                raise ValueError
-            column_index = self.column_names.index(col_identifier)
-        if isinstance(col_identifier, int):
-            if col_identifier < 0 or col_identifier >= len(self.column_names):
-                raise ValueError
-            column_index = col_identifier
+        new_values = []
+        if col_identifier not in self.column_names:
+            raise ValueError(f"{col_identifier} is not valid")
+        col_index = self.column_names.index(col_identifier)
         for row in self.data:
-            #If including missing values add row values at column index
-            if include_missing_values:
-                column.append(row[column_index])
-            else:
-                #if not including NA then continue if value == NA
-                if row[column_index] == "NA":
-                    continue
-                else:
-                    column.append(row[column_index])
-        return column
+            new_values.append(row[col_index])
+        return new_values
 
     def convert_to_numeric(self):
         """Try to convert each value in the table to a numeric type (float).
