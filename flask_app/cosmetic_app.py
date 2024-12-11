@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 def load_model():
-    # unpickle header and tree in tree.p
+    # unpickle header,posteriors and priors
     infile = open("flask_app/naive.p", "rb")
     header, posteriors, priors= pickle.load(infile)
     infile.close()
@@ -38,12 +38,12 @@ def index():
 def predict():
     # lets parse the unseen instance values from the query string
     # they are in the request object
-    product = request.args.get("ProductName") # defaults to None
+    # product = request.args.get("ProductName") # defaults to None
     company = request.args.get("CompanyName")
     brand = request.args.get("BrandName")
     primary = request.args.get("PrimaryCategory")
     sub = request.args.get("SubCategory")
-    instance = [product, company, brand, primary, sub]
+    instance = [company, brand, primary, sub]
     print(instance)
     header, posteriors, priors = load_model()
     # lets make a prediction!
