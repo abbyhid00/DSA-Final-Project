@@ -867,12 +867,12 @@ class MyKNeighborsClassifier:
         """
         all_dist = []
         all_neigh = []
-        #for each unseen instance compute its euclidean distance 
+        #for each unseen instance compute its euclidean distance
         #from the regression line
         for unseen in X_test:
             row_indexes_dist = []
             for i, row in enumerate(self.X_train):
-                dist = myutils.compute_euclidean_distance(row, unseen)
+                dist = myutils.compute_category_distance(row, unseen)
                 row_indexes_dist.append((i, dist))
             #find the nearest neigbors (smallest distances)
             row_indexes_dist.sort(key=operator.itemgetter(-1))
