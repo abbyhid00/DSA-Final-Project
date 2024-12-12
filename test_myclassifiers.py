@@ -1,10 +1,10 @@
 # pylint: skip-file
 """test_myevaluation.py
-Programmer: Abby Hidalgo
+Programmer: Abby Hidalgo and Zobe Murray
 Class: CptS 322-01, Fall 2024
-Programming Assignment #7
-12/6/24
-Description: This is the test file for PA7
+Data Science Final Project
+12/11/24
+Description: This is the test file for the classifiers used in our data science final project.
 """
 import numpy as np
 from scipy import stats

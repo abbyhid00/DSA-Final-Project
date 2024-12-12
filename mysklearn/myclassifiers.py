@@ -1,3 +1,11 @@
+"""
+Name: Abby Hidalgo and Zobe Murray
+Course: CPSC 322
+Date: 12/11/24
+Description: This program contains different classifiers and the fit and predict functionalities of each classifier.
+
+"""
+
 import operator
 import mysklearn.myutils as myutils
 import mysklearn.myevaluation as myeval
@@ -64,9 +72,11 @@ class MyRandomForestClassifier:
         """Makes a prediction based on the trees fit to the random forest classifier which uses majority voting
         to make the best predict 
         
+            x_test(list of list): list of testing instances passed into predict
         Notes:
           Use majority voting to predict classes using M decision trees over test set  
-        """    
+        """
+        
         predictions = []
         y_preds = []
         for i, tree in enumerate(self.trees):
