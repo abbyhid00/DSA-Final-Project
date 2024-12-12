@@ -67,16 +67,13 @@ class MyRandomForestClassifier:
                     best_trees.sort(reverse=True, key=lambda x: x[0])
         self.trees = [tree[1] for tree in best_trees]
         self.headers = [tree[2] for tree in best_trees]
-        
     def predict(self, X_test):
         """Makes a prediction based on the trees fit to the random forest classifier which uses majority voting
         to make the best predict 
         
-            x_test(list of list): list of testing instances passed into predict
         Notes:
           Use majority voting to predict classes using M decision trees over test set  
-        """
-        
+        """    
         predictions = []
         y_preds = []
         for i, tree in enumerate(self.trees):
@@ -117,6 +114,7 @@ class MyDecisionTreeClassifier:
         self.att_domains = None
         self.prev = None
         self.header = None
+        self.maj = None
 
     def fit(self, X_train, y_train, F):
         """Fits a decision tree classifier to X_train and y_train using the TDIDT
@@ -139,6 +137,7 @@ class MyDecisionTreeClassifier:
         #initializing X_train and y_train
         self.X_train = X_train
         self.y_train = y_train
+        self.maj = self.get_majority_class(X_train)
         #concatinating the training data
         train = [X_train[i] + [y_train[i]] for i in range(len(X_train))]
         #extracting the headers and attribute domains
@@ -375,7 +374,7 @@ class MyDecisionTreeClassifier:
             value_list = trees[i]
             if value_list[1] == instance[att_index]:
                 return self.tdidt_predict(instance, value_list[2])
-        return self.get_majority_class(self.X_train)
+        return self.maj
 
     def print_decision_rules(self, attribute_names=None, class_name="class"):
         """Prints the decision rules from the tree in the format
