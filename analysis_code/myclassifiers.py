@@ -1,9 +1,10 @@
 import operator
-import numpy as np
 import analysis_code.myutils as myutils
+import analysis_code.myevaluation as myeval
 import copy
+import numpy as np
 
-class RandomForestClassifier:
+class MyRandomForestClassifier:
     """Represents a random forest classifier.
 
     Attributes:
@@ -18,9 +19,12 @@ class RandomForestClassifier:
             https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
         Terminology: instance = sample = row and attribute = feature = column
     """
-    def ___init__(self):
+    def __init__(self):
         "Initializer for RandomForestClassifier"
-    def fit(self,X_train,y_train):
+        self.trees = []
+        self.headers = []
+
+    def fit(self,X_train,y_train, N, F, M):
         """Fits a random forest classifier to X_train and y_train using bootstrapping to 
         fit the random forest classifier with possible decision trees that could be generated
         
@@ -39,15 +43,369 @@ class RandomForestClassifier:
             Select the M most accurate of the N decision trees using the valiation sets
 
         """
-
-    def predict(self):
+        best_trees = []
+        for _ in range(N):
+            X_training, X_val, y_training, y_val = myeval.bootstrap_sample(X_train, y_train)
+            tree_class = MyDecisionTreeClassifier()
+            tree_class.fit(X_training, y_training, F)
+            tree_pred = tree_class.predict(X_val)
+            acc = myeval.accuracy_score(y_val, tree_pred)
+            if len(best_trees) < M:
+                best_trees.append((acc, tree_class.tree, tree_class.header))
+                best_trees.sort(reverse=True, key=lambda x: x[0])
+            else:
+                if acc > best_trees[-1][0]:
+                    best_trees[-1] = (acc, tree_class.tree, tree_class.header)
+                    best_trees.sort(reverse=True, key=lambda x: x[0])
+        self.trees = [tree[1] for tree in best_trees]
+        self.headers = [tree[2] for tree in best_trees]
+    def predict(self, X_test):
         """Makes a prediction based on the trees fit to the random forest classifier which uses majority voting
         to make the best predict 
         
         Notes:
           Use majority voting to predict classes using M decision trees over test set  
         """    
-        
+        predictions = []
+        y_preds = []
+        for i, tree in enumerate(self.trees):
+            tree_class = MyDecisionTreeClassifier()
+            tree_class.tree = tree
+            tree_class.header = self.headers[i]
+            y_pred = tree_class.predict(X_test)
+            predictions.append(y_pred)
+        for i in range(len(X_test)):
+            temp_pred = []
+            for prediction in predictions:
+                temp_pred.append(prediction[i])
+            unique_labels, counts = myutils.get_frequency(temp_pred)
+            majority_label = unique_labels[np.argmax(counts)]
+            y_preds.append(majority_label)
+        return y_preds
+class MyDecisionTreeClassifier:
+    """Represents a decision tree classifier.
+
+    Attributes:
+        X_train(list of list of obj): The list of training instances (samples).
+                The shape of X_train is (n_train_samples, n_features)
+        y_train(list of obj): The target y values (parallel to X_train).
+            The shape of y_train is n_samples
+        tree(nested list): The extracted tree model.
+
+    Notes:
+        Loosely based on sklearn's DecisionTreeClassifier:
+            https://scikit-learn.org/stable/modules/generated/sklearn.tree.DecisionTreeClassifier.html
+        Terminology: instance = sample = row and attribute = feature = column
+    """
+    def __init__(self):
+        """Initializer for MyDecisionTreeClassifier.
+        """
+        self.X_train = None
+        self.y_train = None
+        self.tree = None
+        self.att_domains = None
+        self.prev = None
+        self.header = None
+
+    def fit(self, X_train, y_train, F):
+        """Fits a decision tree classifier to X_train and y_train using the TDIDT
+        (top down induction of decision tree) algorithm.
+
+        Args:
+            X_train(list of list of obj): The list of training instances (samples).
+                The shape of X_train is (n_train_samples, n_features)
+            y_train(list of obj): The target y values (parallel to X_train)
+                The shape of y_train is n_train_samples
+
+        Notes:
+            Since TDIDT is an eager learning algorithm, this method builds a decision tree model
+                from the training data.
+            Build a decision tree using the nested list representation described in class.
+            On a majority vote tie, choose first attribute value based on attribute domain ordering.
+            Store the tree in the tree attribute.
+            Use attribute indexes to construct default attribute names (e.g. "att0", "att1", ...).
+        """
+        #initializing X_train and y_train
+        self.X_train = X_train
+        self.y_train = y_train
+        #concatinating the training data
+        train = [X_train[i] + [y_train[i]] for i in range(len(X_train))]
+        #extracting the headers and attribute domains
+        num_attributes = len(X_train[0])
+        headers = []
+        attribute_domains = {}
+        for i in range(num_attributes):
+            headers.append(f"att{i}")
+            attribute_domains[f"att{i}"] = set()
+        for row in train:
+            for i in range(num_attributes):
+                attribute_domains[f"att{i}"].add(row[i])
+        self.header = headers
+        available_attributes = headers.copy()
+        self.att_domains = attribute_domains
+        #calling recursive function to build the tree
+        tree = self.tdidt(train, available_attributes.copy(), F)
+        self.tree = tree
+
+    def predict(self, X_test):
+        """Makes predictions for test instances in X_test.
+
+        Args:
+            X_test(list of list of obj): The list of testing samples
+                The shape of X_test is (n_test_samples, n_features)
+
+        Returns:
+            y_predicted(list of obj): The predicted target y values (parallel to X_test)
+        """
+        #getting predictions for the X_test instances
+        predictions = []
+        for inst in X_test:
+            #calling recursive prediction function
+            pred = self.tdidt_predict(inst)
+            predictions.append(pred)
+        return predictions
+    def tdidt(self, current_instances, available_attributes, F):
+        """Recursively creates a decision tree.
+
+        Args:
+            current_instances(list of list of obj): Instances available for partitioning
+            availabel_attributes(list of obj): attributes avaiable to split on
+
+        Returns:
+            tree(list of lists): The tree in the form of a nested list
+        """
+        #getting attribute to split on based on entropy
+        np.random.seed(0)
+        copy_avaliable = copy.deepcopy(available_attributes)
+        if len(copy_avaliable) > F:
+            f_attributes = np.random.choice(copy_avaliable, F, False)
+        else:
+            f_attributes = copy_avaliable
+        # select an attribute to split on
+        split_attribute = self.select_attribute(current_instances, f_attributes)
+        #removing the attribute that is being split on
+        available_attributes = [att for att in available_attributes if att != split_attribute]
+        tree = ["Attribute", split_attribute]
+        self.prev = len(current_instances)
+        #partitioning the instances based on their value for the split attribute
+        partitions = self.partition_instances(current_instances, split_attribute)
+        part_not_empty = True
+        value_subtrees = []
+        for att_val, att_partition in partitions.items():
+            #if a partition is empty, create a leaf node instead of splitting on the split attribute
+            #base case 3
+            if len(att_partition) == 0:
+                part_not_empty = False
+                break
+            value_subtree = ["Value", att_val]
+            #base case 1
+            if len(att_partition) > 0 and self.all_same_class(att_partition):
+                leaf_class = self.get_majority_class(att_partition)
+                value_subtree.append(["Leaf", leaf_class, len(att_partition), len(current_instances)])
+            #base case 2
+            elif len(att_partition) > 0 and len(available_attributes) == 0:
+                majority_class = self.get_majority_class(att_partition)
+                value_subtree.append(["Leaf", majority_class, len(att_partition), len(current_instances)])
+            else:
+                #recursively adding to tree and then appending it to the treee
+                subtree = self.tdidt(att_partition, available_attributes, F)
+                value_subtree.append(subtree)
+            value_subtrees.append(value_subtree)
+        if part_not_empty:
+            #add the split to tree
+            tree.extend(value_subtrees)
+        else:
+            #add leaf to tree
+            majority_class = self.get_majority_class(current_instances)
+            tree = ["Leaf", majority_class, len(current_instances), self.prev]
+        return tree
+
+    def select_attribute(self, current_instances, available_attributes):
+        """Selects an attribute to split on.
+
+        Args:
+            current_instances(list of list of obj): Instances available for partitioning
+            availabel_attributes(list of obj): attributes avaiable to split on
+
+        Returns:
+            attribute_to_split(object): attribute that will be used to split the data
+        """
+        #getting the unique classes in the current_instances
+        unique_classes = {inst[-1] for inst in current_instances}
+        best_entropy = float('inf')
+        attrbute_to_split = None
+        #getting the best attribute (the attribute with the lowest entropy)
+        for att in available_attributes:
+            att_index = int(att[3:])
+            total = len(current_instances)
+            weighted_entropy = 0
+            #going through all of the values in the attribute
+            for domain in self.att_domains[att]:
+                subset = [inst for inst in current_instances if inst[att_index] == domain]
+                subset_size = len(subset)
+                if subset_size == 0:
+                    continue
+                class_counts = {class_name: 0 for class_name in unique_classes}
+                for inst in subset:
+                    class_counts[inst[-1]] += 1
+                domain_entropy = self.entropy(class_counts, subset_size)
+                weighted_entropy += (subset_size / total) * domain_entropy
+            #if the new weighted entropy is smaller than the current lowest, the attribute becomes
+            #the one to split on
+            if weighted_entropy < best_entropy:
+                best_entropy = weighted_entropy
+                attrbute_to_split = att
+        return attrbute_to_split
+    def partition_instances(self, current_instances, split_att):
+        """Partitions the instances based on the split attribute.
+
+        Args:
+            current_instances(list of list of obj): Instances available for partitioning
+            split_att(str): attribute to split on
+
+        Returns:
+            partitions(list of list): the instances split up based on their attribute value
+        """
+        att_index = int(split_att[3:])
+        att_domain = self.att_domains[split_att]
+        partitions = {}
+        #splitting instances based on the value for the attribute
+        for att_val in sorted(att_domain, key=lambda x: str(x)):
+            partitions[att_val] = []
+            for instance in current_instances:
+                if str(instance[att_index]) == str(att_val):
+                    partitions[att_val].append(instance)
+        return partitions
+
+    def all_same_class(self, current_instances):
+        """Tests if all the instances have the same class.
+
+        Args:
+            current_instances(list of list of obj): Instances that are in partition
+
+        Returns:
+            boolean: True or False whether or not the instances all have the same class
+        """
+        first_class = current_instances[0][-1]
+        for instance in current_instances:
+            if instance[-1] != first_class:
+                return False
+        return True
+
+    def get_majority_class(self, instances):
+        """Finds the class the majority of the instances have, unless there is a tie in which case the class
+        that comes first alphabetically becomes the majority class.
+
+        Args:
+            current_instances(list of list of obj): Instances that may have the same class
+
+        Returns:
+            majority class(object): class that is true for the majority of instances
+        """
+        class_counts = {}
+        #getting how many times each class is present in instances
+        for inst in instances:
+            inst_class = inst[-1]
+            class_counts[inst_class] = class_counts.get(inst_class, 0) + 1
+        #finding the class with the highest count of occurances
+        max_count = max(class_counts.values())
+        #if tied return the class that comes first alphabetically
+        tied_classes = [inst_class for inst_class, count in class_counts.items() if count == max_count]
+        return min(tied_classes)
+    def entropy(self, class_counts, total):
+        """Calculates entropy.
+
+        Args:
+            class_counts(set): the count of occurances for each class
+            availabel_attributes(list of obj): attributes avaiable to split on
+
+        Returns:
+            total(int): size of the current partition
+        """
+        entropy_val = 0
+        for count in class_counts.values():
+            if count > 0:
+                probability = count / total
+                entropy_val -= probability * np.log2(probability)
+        return entropy_val
+    def special_case(self, partitions):
+        """Handles case of not enough instances in a partition by calculating denomenator for
+        leaf.
+
+        Args:
+            partitions(list of lists): the partitions for the current split attribute
+
+        Returns:
+            instances(int): Number of instances at the split attribute
+        """
+        instances = 0
+        for _, partition in partitions.items():
+            instances += len(partition)
+        return instances
+    def tdidt_predict(self, instance, trees=None):
+        """Recursively traverses the tree until hitting a leaf node.
+
+        Args:
+            instances(list): an unseen instance to predict on
+            trees(list of lists): current subtree of the decision tree
+
+        Returns:
+            pred(string): class predicted
+        """
+        if trees is None:
+            trees = self.tree.copy()
+        #test base case of finding a leaf node
+        info_type = trees[0]
+        if info_type == "Leaf":
+            return trees[1]
+        #keep recursively traversing
+        att_index = self.header.index(trees[1])
+        for i in range(2, len(trees)):
+            value_list = trees[i]
+            if value_list[1] == instance[att_index]:
+                return self.tdidt_predict(instance, value_list[2])
+        return self.get_majority_class(self.X_train)
+
+    def print_decision_rules(self, attribute_names=None, class_name="class"):
+        """Prints the decision rules from the tree in the format
+        "IF att == val AND ... THEN class = label", one rule on each line.
+
+        Args:
+            attribute_names(list of str or None): A list of attribute names to use in the decision rules
+                (None if a list is not provided and the default attribute names based on indexes
+                (e.g. "att0", "att1", ...) should be used).
+            class_name(str): A string to use for the class name in the decision rules
+                ("class" if a string is not provided and the default name "class" should be used).
+        """
+        if attribute_names is None:
+            attribute_names = self.header
+        #calling recursive function to create the rules
+        self.tdidt_rules(self.tree.copy(), [], class_name, attribute_names)
+
+    def tdidt_rules(self, tree, conditions, class_name, attribute_names):
+        """Recursively creates a tree's decision rules.
+
+        Args:
+            tree(list of lists): tree to traverse
+            conditions(list of obj): current conditions made for rule
+            class_name(str): what the user wants the class (RHS) to be called
+            attribute_names(list): what the user wants the attribute names to be on the LHS
+        """
+        #base case where we have reached a leaf and fully create and print the rule
+        node_type = tree[0]
+        if node_type == "Leaf":
+            rule = " AND ".join(conditions)
+            label = tree[1]
+            print(f"IF {rule} THEN {class_name} = {label}")
+            return
+        #getting the conditions for each rule
+        if node_type == "Attribute":
+            attribute = tree[1]
+            for subtree in tree[2:]:
+                value = subtree[1]
+                condition = f"{attribute_names[int(attribute[3:])]} = {value}"
+                self.tdidt_rules(subtree[2], conditions + [condition], class_name, attribute_names)
+'''
 class MyDecisionTreeClassifier:
     """Represents a decision tree classifier.
 
@@ -72,7 +430,7 @@ class MyDecisionTreeClassifier:
         self.header = None
         self.attribute_domains = None
 
-    def fit(self, X_train, y_train):
+    def fit(self, X_train, y_train, F):
         """Fits a decision tree classifier to X_train and y_train using the TDIDT
         (top down induction of decision tree) algorithm.
 
@@ -104,7 +462,7 @@ class MyDecisionTreeClassifier:
         self.attribute_domains = attribute_domains
         self.header = header
         instances = [x + [y] for x, y in zip(x_copy, y_train)]
-        self.tree = self.tdidt(instances, header)
+        self.tree = self.tdidt(instances, header, F)
 
     def predict(self, X_test):
         """Makes predictions for test instances in X_test.
@@ -290,7 +648,7 @@ class MyDecisionTreeClassifier:
         majority_label = unique_labels[np.argmax(counts)]
         return majority_label
    
-    def tdidt(self,current_instances, available_attributes):
+    def tdidt(self,current_instances, available_attributes, F):
         """Recursive tdidt algorithm that creates the decision tree
 
         Args:
@@ -299,16 +657,21 @@ class MyDecisionTreeClassifier:
         Returns:
             best_att(string): attribute with the lowest attribute
         """
+        np.random.seed(0)
         copy_avaliable = copy.deepcopy(available_attributes)
+        if len(copy_avaliable) > F:
+            f_attributes = np.random.choice(copy_avaliable, F, False)
+        else:
+            f_attributes = copy_avaliable
         # select an attribute to split on
-        split_attribute = self.select_attribute(current_instances, copy_avaliable)
+        split_attribute = self.select_attribute(current_instances, f_attributes)
         copy_avaliable.remove(split_attribute) # can't split on this attribute again
         # in this subtree
         tree = ["Attribute", split_attribute]
         # group data by attribute domains (creates pairwise disjoint partitions)
         partitions = self.partition_instances(current_instances, split_attribute)
         # for each partition, repeat unless one of the following occurs (base case)
-        for att_value in sorted(partitions.keys()): # process in alphabetical order
+        for att_value in sorted(partitions.keys(), key=lambda x: str(x)): # process in alphabetical order
             att_partition = partitions[att_value]
             value_subtree = ["Value", att_value]
             #    CASE 1: all class labels of the partition are the same
@@ -328,11 +691,11 @@ class MyDecisionTreeClassifier:
                 value_subtree.append(["Leaf",class_label,0,len(current_instances)])
             else:
                 # none of base cases were true, recurse!!
-                subtree = self.tdidt(att_partition, copy_avaliable.copy())
+                subtree = self.tdidt(att_partition, copy_avaliable.copy(), F)
                 value_subtree.append(subtree)
             tree.append(value_subtree)
         return tree
-    
+'''    
 class MyNaiveBayesClassifier:
     """Represents a Naive Bayes classifier.
 
@@ -503,12 +866,12 @@ class MyKNeighborsClassifier:
         """
         all_dist = []
         all_neigh = []
-        #for each unseen instance compute its euclidean distance
+        #for each unseen instance compute its euclidean distance 
         #from the regression line
         for unseen in X_test:
             row_indexes_dist = []
             for i, row in enumerate(self.X_train):
-                dist = myutils.compute_category_distance(row, unseen)
+                dist = myutils.compute_euclidean_distance(row, unseen)
                 row_indexes_dist.append((i, dist))
             #find the nearest neigbors (smallest distances)
             row_indexes_dist.sort(key=operator.itemgetter(-1))
@@ -541,4 +904,5 @@ class MyKNeighborsClassifier:
             neigh_labels = [self.y_train[index] for index in instance]
             freq_label = max(set(neigh_labels), key=neigh_labels.count)
             pred.append(freq_label)
-        return pred
+            
+        return pred 
