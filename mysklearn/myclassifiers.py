@@ -1,6 +1,6 @@
 import operator
-import analysis_code.myutils as myutils
-import analysis_code.myevaluation as myeval
+import mysklearn.myutils as myutils
+import mysklearn.myevaluation as myeval
 import copy
 import numpy as np
 
@@ -59,6 +59,7 @@ class MyRandomForestClassifier:
                     best_trees.sort(reverse=True, key=lambda x: x[0])
         self.trees = [tree[1] for tree in best_trees]
         self.headers = [tree[2] for tree in best_trees]
+        
     def predict(self, X_test):
         """Makes a prediction based on the trees fit to the random forest classifier which uses majority voting
         to make the best predict 

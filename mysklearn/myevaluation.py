@@ -1,6 +1,6 @@
 
 import numpy as np # use numpy's random number generation
-import analysis_code.myutils as myutils
+import mysklearn.myutils as myutils
 import tabulate
 # TODO: copy your myevaluation.py solution from PA5 here
 

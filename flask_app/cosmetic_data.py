@@ -1,7 +1,7 @@
 import requests # a lib for making http requests
 import json # a lib for working with json
 
-url = "https://flask-app-demo.onrender.com/predict?ProductName=Adorned%20in%20Diamonds&CompanyName=Nail%20Alliance%2CLLC&BrandName=Morgan%20Taylor&PrimaryCategory=Nail%20Products&SubCategory=Nail%20Polish%20and%20Enamel"
+url = "http://127.0.0.1:5001/predict?CompanyName=Bliss+World+LLC&BrandName=Bliss&PrimaryCategory=Skin+Care+Products&SubCategory=Skin+Cleansers"
 
 response = requests.get(url=url)
 

@@ -8,7 +8,7 @@ Description: This file implements useful functions for myclassifiers and pa6 fil
 import numpy as np
 import matplotlib.pyplot as plt
 import tabulate
-import analysis_code.myevaluation as myeval
+import mysklearn.myevaluation as myeval
 #from mysklearn.myclassifiers import MyKNeighborsClassifier
 #from mysklearn.myclassifiers import MyDummyClassifier
 

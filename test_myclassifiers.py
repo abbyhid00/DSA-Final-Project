@@ -9,7 +9,7 @@ Description: This is the test file for PA7
 import numpy as np
 from scipy import stats
 
-from analysis_code.myclassifiers import MyDecisionTreeClassifier,\
+from mysklearn.myclassifiers import MyDecisionTreeClassifier,\
     MyNaiveBayesClassifier,\
     MyKNeighborsClassifier,\
     MyRandomForestClassifier
